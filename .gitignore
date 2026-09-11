@@ -1,0 +1,22 @@
+# Local binaries and Ghidra dumps
+artifacts/
+*.app/
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+
+# macOS
+.DS_Store
+
+# Practice TLS private keys (certs/*.crt stay)
+*.key
+*.csr
+*.srl

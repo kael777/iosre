@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package signdemo;
+
+service SignDemo {
+  rpc Ping (PingRequest) returns (PingReply);
+}
+
+message PingRequest {
+  string user_id = 1;   // wire: length-delimited
+  int64 timestamp = 2;  // wire: varint
+}
+
+message PingReply {
+  bool ok = 1;          // wire: varint
+  string service = 2;   // wire: length-delimited
+  int64 time = 3;       // wire: varint
+}
