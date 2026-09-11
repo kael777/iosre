@@ -1,0 +1,9 @@
+Package: com.weideshun.signdemotweak
+Name: SignDemoTweak
+Version: 0.0.1
+Architecture: iphoneos-arm
+Description: Minimal lifecycle log tweak for com.weideshun.SignDemo only.
+Maintainer: 韦德顺
+Author: 韦德顺
+Section: Tweaks
+Depends: mobilesubstrate (>= 0.9.5000)

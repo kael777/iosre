@@ -21,6 +21,8 @@ DEFAULT_BASE_URL = "https://127.0.0.1:5443"
 DEFAULT_SECRET = "local-demo-secret-v1"
 DEFAULT_USER_ID = "demo-user-001"
 DEFAULT_PASSWORD = "demo-password"
+DEFAULT_USER_ID_2 = "demo-user-002"
+DEFAULT_PASSWORD_2 = "demo-password-2"
 
 ROOT = Path(__file__).resolve().parents[2]
 CA_PATH = ROOT / "backend" / "certs" / "ca.crt"
@@ -87,14 +89,26 @@ def ssl_context(url: str) -> ssl.SSLContext | None:
     return context
 
 
-def post_json(url: str, body: dict) -> tuple[int, dict | str]:
+def request_json(
+    url: str,
+    *,
+    method: str = "GET",
+    body: dict | None = None,
+    headers: dict[str, str] | None = None,
+) -> tuple[int, dict | str]:
     assert_local_url(url)
-    payload = json.dumps(body).encode("utf-8")
+    request_headers = {"Accept": "application/json"}
+    data = None
+    if body is not None:
+        request_headers["Content-Type"] = "application/json"
+        data = json.dumps(body).encode("utf-8")
+    if headers:
+        request_headers.update(headers)
     request = Request(
         url,
-        data=payload,
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
-        method="POST",
+        data=data,
+        headers=request_headers,
+        method=method,
     )
     try:
         with urlopen(request, timeout=8, context=ssl_context(url)) as response:
@@ -111,3 +125,11 @@ def post_json(url: str, body: dict) -> tuple[int, dict | str]:
     except json.JSONDecodeError:
         parsed = raw
     return status, parsed
+
+
+def post_json(url: str, body: dict) -> tuple[int, dict | str]:
+    return request_json(url, method="POST", body=body)
+
+
+def get_json(url: str, headers: dict[str, str] | None = None) -> tuple[int, dict | str]:
+    return request_json(url, method="GET", headers=headers)

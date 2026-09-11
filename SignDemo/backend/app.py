@@ -93,14 +93,25 @@ def create_app(
         ),
         TESTING=testing,
         WS_INTERVAL_SECONDS=_env_int("SIGNDEMO_WS_INTERVAL", 5),
+        DEFECT_SKIP_SIGN=_env_flag("SIGNDEMO_DEFECT_SKIP_SIGN", False),
+        DEFECT_SKIP_NONCE=_env_flag("SIGNDEMO_DEFECT_SKIP_NONCE", False),
+        DEFECT_SKIP_WINDOW=_env_flag("SIGNDEMO_DEFECT_SKIP_WINDOW", False),
+        DEFECT_SKIP_ACL=_env_flag("SIGNDEMO_DEFECT_SKIP_ACL", False),
     )
 
     sock = Sock(app)
+
+    for defect in ("SKIP_SIGN", "SKIP_NONCE", "SKIP_WINDOW", "SKIP_ACL"):
+        if app.config[f"DEFECT_{defect}"]:
+            print(f"defect {defect.lower()} enabled")
 
     # This is deliberately process-local for the first learning stage.
     # Restarting the server clears the set; persistence is a later exercise.
     used_nonces: set[str] = set()
     nonce_lock = Lock()
+    issued_tokens: dict[str, str] = {}
+    stored_orders: dict[str, dict[str, Any]] = {}
+    store_lock = Lock()
 
     def error(message: str, status: int):
         return jsonify({"ok": False, "error": message}), status
@@ -135,20 +146,26 @@ def create_app(
         if body is None:
             return None, error("request body must be a JSON object", 400)
 
-        required = ("user_id", "timestamp", "nonce", "sign")
+        skip_sign = app.config["DEFECT_SKIP_SIGN"]
+        skip_nonce = app.config["DEFECT_SKIP_NONCE"]
+        skip_window = app.config["DEFECT_SKIP_WINDOW"]
+
+        required = ["user_id", "timestamp", "nonce"]
+        if not skip_sign:
+            required.append("sign")
         missing = [field for field in required if field not in body]
         if missing:
             return None, error(f"missing fields: {', '.join(missing)}", 400)
 
         user_id = body["user_id"]
         nonce = body["nonce"]
-        supplied_signature = body["sign"]
+        supplied_signature = body.get("sign", "")
 
         if not isinstance(user_id, str) or not user_id:
             return None, error("user_id must be a non-empty string", 400)
         if not isinstance(nonce, str) or not nonce:
             return None, error("nonce must be a non-empty string", 400)
-        if not isinstance(supplied_signature, str) or not supplied_signature:
+        if not skip_sign and (not isinstance(supplied_signature, str) or not supplied_signature):
             return None, error("sign must be a non-empty string", 400)
 
         try:
@@ -157,23 +174,35 @@ def create_app(
             return None, error("timestamp must be an integer Unix timestamp", 400)
 
         now = int(time.time())
-        if abs(now - timestamp) > app.config["TIME_WINDOW_SECONDS"]:
+        if not skip_window and abs(now - timestamp) > app.config["TIME_WINDOW_SECONDS"]:
             return None, error("request timestamp is outside the allowed window", 401)
 
-        expected = expected_signature(body, action)
-        if not hmac.compare_digest(supplied_signature.lower(), expected):
-            return None, error("invalid signature", 401)
+        if not skip_sign:
+            expected = expected_signature(body, action)
+            if not hmac.compare_digest(str(supplied_signature).lower(), expected):
+                return None, error("invalid signature", 401)
 
-        with nonce_lock:
-            if nonce in used_nonces:
-                return None, error("nonce has already been used", 409)
-            used_nonces.add(nonce)
+        if not skip_nonce:
+            with nonce_lock:
+                if nonce in used_nonces:
+                    return None, error("nonce has already been used", 409)
+                used_nonces.add(nonce)
 
         return body, None
 
     def issue_token(user_id: str) -> str:
         # This token is only a local demo value. It is not a production token.
         return f"demo-token-{user_id}-{secrets.token_hex(8)}"
+
+    def bearer_user_id() -> str | None:
+        header = request.headers.get("Authorization") or ""
+        if not header.lower().startswith("bearer "):
+            return None
+        token = header[7:].strip()
+        if not token:
+            return None
+        with store_lock:
+            return issued_tokens.get(token)
 
     @app.get("/api/health")
     def health():
@@ -197,6 +226,8 @@ def create_app(
             return error("invalid demo credentials", 401)
 
         token = issue_token(user.user_id)
+        with store_lock:
+            issued_tokens[token] = user.user_id
         return jsonify(
             {
                 "ok": True,
@@ -222,17 +253,31 @@ def create_app(
         if amount <= 0:
             return error("amount must be greater than zero", 400)
 
-        return jsonify(
-            {
-                "ok": True,
-                "order": {
-                    "order_id": order_id,
-                    "user_id": body["user_id"],
-                    "amount": amount,
-                    "status": "created",
-                },
-            }
-        )
+        order = {
+            "order_id": order_id,
+            "user_id": body["user_id"],
+            "amount": amount,
+            "status": "created",
+        }
+        with store_lock:
+            stored_orders[order_id] = order
+        return jsonify({"ok": True, "order": order})
+
+    @app.get("/api/orders/<order_id>")
+    def get_order(order_id: str):
+        skip_acl = app.config["DEFECT_SKIP_ACL"]
+        actor = None
+        if not skip_acl:
+            actor = bearer_user_id()
+            if actor is None:
+                return error("missing or invalid token", 401)
+        with store_lock:
+            order = stored_orders.get(order_id)
+        if order is None:
+            return error("order not found", 404)
+        if not skip_acl and order["user_id"] != actor:
+            return error("forbidden", 403)
+        return jsonify({"ok": True, "order": order})
 
     @sock.route("/ws/events")
     def ws_events(ws):
@@ -263,6 +308,13 @@ def create_app(
 
     @app.get("/api/profile/<user_id>")
     def profile(user_id: str):
+        skip_acl = app.config["DEFECT_SKIP_ACL"]
+        if not skip_acl:
+            actor = bearer_user_id()
+            if actor is None:
+                return error("missing or invalid token", 401)
+            if actor != user_id:
+                return error("forbidden", 403)
         user = DEMO_USERS.get(user_id)
         if user is None:
             return error("demo user not found", 404)

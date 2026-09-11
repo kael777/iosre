@@ -39,14 +39,14 @@ def client():
         yield test_client
 
 
-def signed_body(*, action: str, nonce: str, **extra):
+def signed_body(*, action: str, nonce: str, user_id: str = "demo-user-001", **extra):
     timestamp = int(time.time())
     body = {
-        "user_id": "demo-user-001",
+        "user_id": user_id,
         "timestamp": timestamp,
         "nonce": nonce,
         "sign": make_signature(
-            user_id="demo-user-001",
+            user_id=user_id,
             timestamp=timestamp,
             nonce=nonce,
             action=action,
@@ -54,6 +54,24 @@ def signed_body(*, action: str, nonce: str, **extra):
     }
     body.update(extra)
     return body
+
+
+def login(client, *, user_id: str, password: str, nonce: str) -> str:
+    response = client.post(
+        "/api/login",
+        json=signed_body(
+            action="login",
+            nonce=nonce,
+            user_id=user_id,
+            password=password,
+        ),
+    )
+    assert response.status_code == 200
+    return response.json["token"]
+
+
+def auth_header(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_health(client):
@@ -145,6 +163,141 @@ def test_order_accepts_valid_signature(client):
     assert response.json["ok"] is True
     assert response.json["order"]["status"] == "created"
     assert response.json["order"]["amount"] == 10
+
+
+def test_owner_can_read_own_order(client):
+    token = login(
+        client,
+        user_id="demo-user-001",
+        password="demo-password",
+        nonce="login-owner-001",
+    )
+    created = client.post(
+        "/api/order",
+        json=signed_body(
+            action="order",
+            nonce="order-store-001",
+            order_id="order-a",
+            amount=10,
+        ),
+    )
+    fetched = client.get("/api/orders/order-a", headers=auth_header(token))
+
+    assert created.status_code == 200
+    assert fetched.status_code == 200
+    assert fetched.json["order"]["user_id"] == "demo-user-001"
+    assert fetched.json["order"]["amount"] == 10
+
+
+def test_order_read_without_token_is_401(client):
+    client.post(
+        "/api/order",
+        json=signed_body(
+            action="order",
+            nonce="order-unauth-001",
+            order_id="order-a",
+            amount=10,
+        ),
+    )
+    fetched = client.get("/api/orders/order-a")
+
+    assert fetched.status_code == 401
+    assert fetched.json["error"] == "missing or invalid token"
+
+
+def test_other_user_cannot_read_order(client):
+    token_a = login(
+        client,
+        user_id="demo-user-001",
+        password="demo-password",
+        nonce="login-idor-a",
+    )
+    token_b = login(
+        client,
+        user_id="demo-user-002",
+        password="demo-password-2",
+        nonce="login-idor-b",
+    )
+    client.post(
+        "/api/order",
+        json=signed_body(
+            action="order",
+            nonce="order-idor-b",
+            user_id="demo-user-002",
+            order_id="order-b",
+            amount=99,
+        ),
+    )
+    stolen = client.get("/api/orders/order-b", headers=auth_header(token_a))
+    own = client.get("/api/orders/order-b", headers=auth_header(token_b))
+
+    assert stolen.status_code == 403
+    assert stolen.json["error"] == "forbidden"
+    assert own.status_code == 200
+    assert own.json["order"]["user_id"] == "demo-user-002"
+    assert own.json["order"]["amount"] == 99
+
+
+def test_missing_order_is_404_when_authenticated(client):
+    token = login(
+        client,
+        user_id="demo-user-001",
+        password="demo-password",
+        nonce="login-missing-001",
+    )
+    response = client.get("/api/orders/does-not-exist", headers=auth_header(token))
+
+    assert response.status_code == 404
+    assert response.json["error"] == "order not found"
+
+
+def test_profile_rejects_other_user(client):
+    token_a = login(
+        client,
+        user_id="demo-user-001",
+        password="demo-password",
+        nonce="login-profile-a",
+    )
+    other = client.get("/api/profile/demo-user-002", headers=auth_header(token_a))
+    own = client.get("/api/profile/demo-user-001", headers=auth_header(token_a))
+    missing = client.get("/api/profile/demo-user-002")
+
+    assert other.status_code == 403
+    assert own.status_code == 200
+    assert own.json["profile"]["user_id"] == "demo-user-001"
+    assert missing.status_code == 401
+
+
+def test_skip_acl_allows_cross_user_read(monkeypatch):
+    monkeypatch.setenv("SIGNDEMO_DEFECT_SKIP_ACL", "1")
+    app = create_app(secret=SECRET, testing=True)
+    with app.test_client() as client:
+        token_a = login(
+            client,
+            user_id="demo-user-001",
+            password="demo-password",
+            nonce="login-skip-acl-a",
+        )
+        client.post(
+            "/api/order",
+            json=signed_body(
+                action="order",
+                nonce="order-skip-acl-b",
+                user_id="demo-user-002",
+                order_id="order-b",
+                amount=99,
+            ),
+        )
+        stolen = client.get("/api/orders/order-b", headers=auth_header(token_a))
+        anonymous = client.get("/api/orders/order-b")
+        profile = client.get("/api/profile/demo-user-002")
+
+        assert stolen.status_code == 200
+        assert stolen.json["order"]["user_id"] == "demo-user-002"
+        assert stolen.json["order"]["amount"] == 99
+        assert anonymous.status_code == 200
+        assert profile.status_code == 200
+        assert profile.json["profile"]["display_name"] == "Second Demo User"
 
 
 def test_order_rejects_non_positive_amount(client):

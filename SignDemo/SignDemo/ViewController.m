@@ -34,6 +34,7 @@ static NSString * const kSignDemoPlainSecretDefaultsKey = @"SignDemoUsePlainSecr
 @property (nonatomic, strong) UIButton *orderButton;
 @property (nonatomic, strong) UIButton *connectWSButton;
 @property (nonatomic, strong) UIButton *disconnectWSButton;
+@property (nonatomic, strong) UIButton *crashButton;
 @property (nonatomic, strong) UITextView *outputView;
 @property (nonatomic, copy) NSString *sessionToken;
 
@@ -163,6 +164,10 @@ static NSString * const kSignDemoPlainSecretDefaultsKey = @"SignDemoUsePlainSecr
                                           action:@selector(connectWSButtonTapped:)];
     self.disconnectWSButton = [self buttonWithTitle:@"Disconnect WS"
                                              action:@selector(disconnectWSButtonTapped:)];
+    self.crashButton = [self buttonWithTitle:@"Crash (W13)"
+                                      action:@selector(crashButtonTapped:)];
+    self.crashButton.layer.borderColor = UIColor.systemRedColor.CGColor;
+    [self.crashButton setTitleColor:UIColor.systemRedColor forState:UIControlStateNormal];
 
     UILabel *outputLabel = [self labelWithText:@"HTTP 状态码和响应正文"];
     outputLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
@@ -190,7 +195,8 @@ static NSString * const kSignDemoPlainSecretDefaultsKey = @"SignDemoUsePlainSecr
     UIStackView *wsButtonStack = [[UIStackView alloc] initWithArrangedSubviews:@[
         self.orderButton,
         self.connectWSButton,
-        self.disconnectWSButton
+        self.disconnectWSButton,
+        self.crashButton
     ]];
     wsButtonStack.translatesAutoresizingMaskIntoConstraints = NO;
     wsButtonStack.axis = UILayoutConstraintAxisHorizontal;
@@ -429,6 +435,12 @@ static NSString * const kSignDemoPlainSecretDefaultsKey = @"SignDemoUsePlainSecr
 
 - (void)disconnectWSButtonTapped:(UIButton *)sender {
     [self.client disconnectEvents];
+}
+
+- (void)crashButtonTapped:(UIButton *)sender {
+    @throw [NSException exceptionWithName:@"SignDemoLab"
+                                   reason:@"intentional crash for W13"
+                                 userInfo:nil];
 }
 
 - (void)orderButtonTapped:(UIButton *)sender {
