@@ -22,4 +22,4 @@
 
 ## 下一步
 
-W19：反调试、越狱检测和反分析。只在自己的 SignDemo / 授权靶场上做。
+W19 已完成：见 [`week-19-defenses.md`](week-19-defenses.md)。

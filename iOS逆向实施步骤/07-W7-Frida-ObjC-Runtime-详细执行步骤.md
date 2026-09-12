@@ -1,6 +1,6 @@
 # W7 Frida 与 ObjC Runtime：详细执行步骤
 
-> 本文件是 [`iOS逆向_2026完整实施计划.md`](../iOS逆向_2026完整实施计划.md) 中“11. W7：Frida JavaScript 基础和 ObjC Runtime”的执行手册。  
+> 本文件是 [`iOS逆向_2026Q1完整实施计划.md`](../iOS逆向_2026Q1完整实施计划.md) 中“11. W7：Frida JavaScript 基础和 ObjC Runtime”的执行手册。  
 > 当前环境：Mac mini 2023（Apple M2、macOS 26.6.2、Xcode 26.6）+ iPhone XR（A12、arm64e、iOS 18.5）。  
 > 当前路线：Dopamine 越狱 + Frida 17.17 + 自建 SignDemo。  
 > 操作范围：只 Hook `com.weideshun.SignDemo`。不要对系统 App、商店 App 改返回值。

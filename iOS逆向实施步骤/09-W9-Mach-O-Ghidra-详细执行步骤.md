@@ -1,6 +1,6 @@
 # W9 Mach-O 与 Ghidra：详细执行步骤
 
-> 本文件是 [`iOS逆向_2026完整实施计划.md`](../iOS逆向_2026完整实施计划.md) 中“13. W9：Mach-O、代码签名和 Ghidra”的执行手册。  
+> 本文件是 [`iOS逆向_2026Q1完整实施计划.md`](../iOS逆向_2026Q1完整实施计划.md) 中“13. W9：Mach-O、代码签名和 Ghidra”的执行手册。  
 > 当前环境：Mac mini 2023（Apple M2、macOS 26.6.2、Xcode 26.6）+ iPhone XR（A12、arm64e、iOS 18.5）。  
 > 对象：自己编译的 **SignDemo** 主二进制。不要对商店 App 做脱壳（那是 W10）。  
 > Ghidra：Homebrew formula，`ghidraRun`，依赖 JDK 21。

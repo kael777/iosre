@@ -9,6 +9,7 @@
 #import "APIClient.h"
 #import "APIConfig.h"
 #import "AntiDebug.h"
+#import "JailbreakCheck.h"
 #import "SecretStore.h"
 
 static NSString * const kSignDemoBaseURLDefaultsKey = @"SignDemoBaseURL";
@@ -35,6 +36,7 @@ static NSString * const kSignDemoPlainSecretDefaultsKey = @"SignDemoUsePlainSecr
 @property (nonatomic, strong) UIButton *connectWSButton;
 @property (nonatomic, strong) UIButton *disconnectWSButton;
 @property (nonatomic, strong) UIButton *crashButton;
+@property (nonatomic, strong) UIButton *jailbreakButton;
 @property (nonatomic, strong) UITextView *outputView;
 @property (nonatomic, copy) NSString *sessionToken;
 
@@ -168,6 +170,8 @@ static NSString * const kSignDemoPlainSecretDefaultsKey = @"SignDemoUsePlainSecr
                                       action:@selector(crashButtonTapped:)];
     self.crashButton.layer.borderColor = UIColor.systemRedColor.CGColor;
     [self.crashButton setTitleColor:UIColor.systemRedColor forState:UIControlStateNormal];
+    self.jailbreakButton = [self buttonWithTitle:@"Jailbreak Check (W19)"
+                                          action:@selector(jailbreakButtonTapped:)];
 
     UILabel *outputLabel = [self labelWithText:@"HTTP 状态码和响应正文"];
     outputLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
@@ -212,6 +216,7 @@ static NSString * const kSignDemoPlainSecretDefaultsKey = @"SignDemoUsePlainSecr
         pinningRow,
         antiDebugRow,
         plainSecretRow,
+        self.jailbreakButton,
         buttonStack,
         wsButtonStack,
         outputLabel,
@@ -441,6 +446,12 @@ static NSString * const kSignDemoPlainSecretDefaultsKey = @"SignDemoUsePlainSecr
     @throw [NSException exceptionWithName:@"SignDemoLab"
                                    reason:@"intentional crash for W13"
                                  userInfo:nil];
+}
+
+- (void)jailbreakButtonTapped:(UIButton *)sender {
+    [self appendOutput:[NSString stringWithFormat:
+                        @"JailbreakCheck（只记录，不退出）\n%@",
+                        [JailbreakCheck statusSummary]]];
 }
 
 - (void)orderButtonTapped:(UIButton *)sender {

@@ -1,6 +1,6 @@
 # W14 Theos 与最小 Tweak：详细执行步骤
 
-> 本文件是 [`iOS逆向_2026完整实施计划.md`](../iOS逆向_2026完整实施计划.md) 中“18. W14：Theos 和最小 Tweak”的执行手册。  
+> 本文件是 [`iOS逆向_2026Q1完整实施计划.md`](../iOS逆向_2026Q1完整实施计划.md) 中“18. W14：Theos 和最小 Tweak”的执行手册。  
 > 设备：iPhone XR / iOS 18.5 / Dopamine **rootless**。  
 > 对象：**只 Hook `com.weideshun.SignDemo`**。不要改 SpringBoard、Safari、设置。
 

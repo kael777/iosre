@@ -1,6 +1,6 @@
 # W4 TLS Pinning：详细执行步骤
 
-> 本文件是 [`iOS逆向_2026完整实施计划.md`](../iOS逆向_2026完整实施计划.md) 中“8. W4：TLS Pinning 原理和自建 App 绕过”的执行手册。  
+> 本文件是 [`iOS逆向_2026Q1完整实施计划.md`](../iOS逆向_2026Q1完整实施计划.md) 中“8. W4：TLS Pinning 原理和自建 App 绕过”的执行手册。  
 > 当前环境：Mac mini 2023（Apple M2、macOS 26.6.2、Xcode 26.6）+ iPhone XR（A12、arm64e、iOS 18.5）。  
 > 当前路线：Dopamine 越狱 + Frida 17.17 + 自建 SignDemo + 自建本地后端。  
 > 操作范围：自己的 XR、自己编写的 SignDemo/后端。不要对第三方 App 做 Pinning 绕过。
