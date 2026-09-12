@@ -2,7 +2,7 @@
 //  AppDelegate.m
 //  SignDemo
 //
-//  Created by 韦德顺 on 2026/9/10.
+//  Created by SignDemo on 2026/9/10.
 //
 
 #import "AppDelegate.h"
